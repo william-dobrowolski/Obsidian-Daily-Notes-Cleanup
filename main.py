@@ -3,8 +3,11 @@
 import os
 import json
 import sys
+import logging
 from dotenv import load_dotenv, find_dotenv, set_key
 from pathlib import Path
+
+logging.basicConfig(filename='md_cleanup_log.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def load_env():
     '''
@@ -34,8 +37,6 @@ def load_env():
         os.environ["vault_location"] = vault_location
 
     return vault_location
-    print(f"Vault location: {vault_location}")
-
 
 def confirm_vault_location(vault_location):
     '''
@@ -50,7 +51,7 @@ def confirm_vault_location(vault_location):
         notes_settings = vault_path / ".obsidian" / "daily-notes.json"
 
         if notes_settings.exists() and notes_settings.is_file():
-            print(f"The daily notes settings were found in: {notes_settings}")
+            # print(f"The daily notes settings were found in: {notes_settings}")
             daily_notes_path = Path(notes_settings)
             return daily_notes_path
         else:
@@ -68,21 +69,58 @@ def load_json_file(json_file_path):
         data = json.load(file)
     return data
 
+def find_mds(vault_path):
+    '''
+    Recursively search the daily notes location for .md files that are 0KB.
+    Return as list of Path objects.
+    '''
+    vault_path = Path(vault_path)
+
+    md_files_zero_kb = [file for file in vault_path.glob("**/*.md") if file.stat().st_size == 0]
+
+    return md_files_zero_kb
+
+def delete_md_files(files_to_delete):
+    '''
+    Deletes each .md file in the provided list of Path objects
+    '''
+    for file_path in files_to_delete:
+        try:
+            file_path.unlink()
+            logging.info(f"Deleted: {file_path}")
+            print(f"Deleted: {file_path}")
+        except FileNotFoundError:
+            logging.warning(f"File not found: {file_path}")
+            print(f"File not found {file_path}")
+        except Exception as e:
+            logging.error(f"Error deleting {file_path}: {e}")
+            print(f"Error deleting {file_path}: {e}")
+
+
 def main():
-    vault_location = load_env()
-    daily_notes_location = confirm_vault_location(vault_location)
+    vault_path = Path(load_env())
+    print(f"Vault Path: {vault_path}")
+    
+    daily_notes_settings_path = confirm_vault_location(vault_path)
+    print(f"Daily Notes Settings Path: {daily_notes_settings_path}")
 
     # Exits program if no daily-notes found
-    if not confirm_vault_location:
+    if not confirm_vault_location(vault_path):
         sys.exit("Cannot proceed without valid 'daily-notes.json' file.")
 
-    print(f"Daily Notes settings are in: {daily_notes_location}")
+    daily_notes_settings = load_json_file(daily_notes_settings_path)
+    print(f"Daily Notes Settings: {daily_notes_settings}")
 
-    daily_notes_data = load_json_file(daily_notes_location)
-    daily_vault_location = daily_notes_data["folder"]
+    daily_notes_folder = daily_notes_settings["folder"]
+    print(f"Daily Notes Folder: {daily_notes_folder}")
 
-    print(daily_notes_data)
-    print(f"Daily notes location in vault: {daily_vault_location}")
+    daily_notes_folder_path = Path(vault_path / f"{daily_notes_folder}")
+    print(f"Daily Notes folder path: {daily_notes_folder_path}")
+
+    empty_md_files = find_mds(daily_notes_folder_path)
+    print(empty_md_files)
+
+    delete_md_files(empty_md_files)
 
 if __name__ == "__main__":
     main()
