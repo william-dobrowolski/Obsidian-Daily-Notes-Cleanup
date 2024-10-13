@@ -6,6 +6,7 @@ import sys
 import logging
 from dotenv import load_dotenv, find_dotenv, set_key
 from pathlib import Path
+from tkinter.filedialog import askdirectory
 
 logging.basicConfig(filename='md_cleanup_log.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -22,7 +23,12 @@ def load_env():
 
     if not vault_location:
         # Prompt the user for a "vault location" if it isn't found in the .env
-        vault_location = input("Please provide a vault_location value: ")
+        print("Please select the directory of the Obsidian vault you'd like to clean up.")
+
+        # vault_location = input("Please provide a vault_location value: ")
+
+        # Uses tkinter for folder directory selection window
+        vault_location = r'{}'.format(askdirectory(title="Select Vault", mustexist=True))
 
         # If the .env file exists
         if dotenv_path:
